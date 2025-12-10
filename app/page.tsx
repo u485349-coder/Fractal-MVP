@@ -57,6 +57,7 @@ export default function Home() {
   const [address, setAddress] = useState("");
   const [connected, setConnected] = useState(false);
   const [pulseHero, setPulseHero] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
 
   // wallet’s FCAT holdings
   const [projects, setProjects] = useState<HoldingProject[]>([]);
@@ -265,52 +266,102 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-black text-white overflow-hidden">
       {/* NAVBAR */}
-      <nav className="fixed top-0 left-0 w-full z-50 backdrop-blur border-b border-[#C9A84F]/40 px-12 py-5 flex justify-between items-center">
-        <span className="tracking-[0.35em] font-semibold">
-          FRACTAL
-        </span>
+      <nav className="fixed top-0 left-0 w-full z-50 bg-black/80 backdrop-blur border-b border-[#C9A84F]/40 px-4 sm:px-8 lg:px-12 py-4 flex items-center justify-between">
+        {/* Brand + logo */}
+        <Link
+          href="/"
+          className="flex items-center gap-3 select-none"
+        >
+          <div className="relative h-7 w-7 sm:h-8 sm:w-8">
+            <Image
+              src="/FractalLogo.png"
+              alt="Fractal logo"
+              fill
+              className="object-contain"
+            />
+          </div>
+          <span className="tracking-[0.35em] text-xs sm:text-sm font-semibold">
+            FRACTAL
+          </span>
+        </Link>
 
-        <div className="flex gap-8 text-sm items-center">
+        {/* Desktop nav */}
+        <div className="hidden md:flex items-center gap-10 text-sm ml-8">
           <Link
             href="/marketplace"
-            className="hover:text-[#F7E7A5] transition"
+            className="hover:text-[#F7E7A5] transition px-2 py-1"
           >
             Marketplace
           </Link>
 
           <Link
             href="/dashboard"
-            className="hover:text-[#F7E7A5] transition"
+            className="hover:text-[#F7E7A5] transition px-2 py-1"
           >
             Creator Dashboard
           </Link>
 
           {connected && (
-            <span className="text-[#E3C463] font-mono">
+            <span className="text-[#E3C463] font-mono text-xs">
               {address.slice(0, 6)}…{address.slice(-4)}
             </span>
           )}
         </div>
+
+        {/* Mobile nav toggle */}
+        <button
+          type="button"
+          className="md:hidden text-sm px-3 py-2 border border-[#C9A84F]/60 rounded-lg bg-zinc-950/80"
+          onClick={() => setNavOpen((open) => !open)}
+        >
+          Menu
+        </button>
+
+        {/* Mobile menu */}
+        {navOpen && (
+          <div className="md:hidden absolute top-full right-4 mt-3 bg-zinc-950/95 border border-[#C9A84F]/50 rounded-xl shadow-lg py-2 w-44">
+            <Link
+              href="/marketplace"
+              className="block px-4 py-2 text-sm hover:bg-zinc-800"
+              onClick={() => setNavOpen(false)}
+            >
+              Marketplace
+            </Link>
+            <Link
+              href="/dashboard"
+              className="block px-4 py-2 text-sm hover:bg-zinc-800"
+              onClick={() => setNavOpen(false)}
+            >
+              Creator Dashboard
+            </Link>
+            {connected && (
+              <div className="px-4 py-2 text-xs text-[#E3C463] font-mono border-t border-zinc-800 mt-1">
+                {address.slice(0, 6)}…{address.slice(-4)}
+              </div>
+            )}
+          </div>
+        )}
       </nav>
 
       {/* HERO */}
-      <section className="relative text-center py-36">
+      <section className="relative text-center pt-32 pb-24 sm:py-36">
         <div
           className={`absolute inset-0 blur-3xl transition-all duration-1000
           bg-[radial-gradient(circle_at_center,_rgba(214,182,92,0.25),_transparent_65%)]
           ${pulseHero ? "opacity-90 scale-110" : "opacity-50"}`}
         />
 
-        <div className="relative max-w-4xl mx-auto space-y-6">
-          <div className="relative h-28 w-28 mx-auto">
+        <div className="relative max-w-4xl mx-auto space-y-6 px-4">
+          <div className="relative h-24 w-24 sm:h-28 sm:w-28 mx-auto">
             <Image src="/FractalLogo.png" alt="Fractal" fill />
           </div>
 
-          <h1 className="text-6xl tracking-[0.24em] font-bold">
+          {/* Slightly smaller hero title per feedback */}
+          <h1 className="text-5xl sm:text-6xl tracking-[0.24em] font-bold">
             FRACTAL
           </h1>
 
-          <p className="text-white/80">
+          <p className="text-white/80 text-sm sm:text-base">
             Let fans invest in your work — and get paid with you.
           </p>
 
@@ -329,7 +380,7 @@ export default function Home() {
       </section>
 
       {/* DASHBOARD */}
-      <section className="grid md:grid-cols-3 gap-10 max-w-6xl mx-auto px-8 pb-24 pt-24">
+      <section className="grid md:grid-cols-3 gap-8 md:gap-10 max-w-6xl mx-auto px-4 sm:px-8 pb-24 pt-4 sm:pt-8">
         {/* LEFT CARD: FCAT SELECTOR */}
         <Card
           className="bg-zinc-900/85 border border-[#C9A84F]/40 transition-all
@@ -338,17 +389,19 @@ export default function Home() {
                      hover:-translate-y-1"
         >
           <CardHeader>
-            <CardTitle>Select FCAT</CardTitle>
+            <CardTitle className="text-white">
+              Select FCAT
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {!connected && (
-              <p className="text-sm text-zinc-400">
+              <p className="text-sm text-zinc-300">
                 Connect your wallet to see your FCAT holdings.
               </p>
             )}
 
             {connected && loadingProjects && (
-              <p className="text-sm text-zinc-400">
+              <p className="text-sm text-zinc-300">
                 Loading your projects…
               </p>
             )}
@@ -356,7 +409,7 @@ export default function Home() {
             {connected &&
               !loadingProjects &&
               projects.length === 0 && (
-                <p className="text-sm text-zinc-400">
+                <p className="text-sm text-zinc-300">
                   You do not hold any FCAT yet.{" "}
                   <Link
                     href="/marketplace"
@@ -388,7 +441,7 @@ export default function Home() {
                   </select>
 
                   {selectedProject && (
-                    <div className="text-sm text-zinc-300 space-y-1">
+                    <div className="text-sm text-zinc-200 space-y-1">
                       <p>
                         Creator:{" "}
                         <span className="font-mono text-xs">
@@ -417,16 +470,18 @@ export default function Home() {
                      hover:-translate-y-1"
         >
           <CardHeader>
-            <CardTitle>Your Holdings</CardTitle>
+            <CardTitle className="text-white">
+              Your Holdings
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <p>
+            <p className="text-sm text-white">
               FCAT:{" "}
               <span className="font-semibold">
                 {fcatBalance}
               </span>
             </p>
-            <p className="text-[#E3C463]">
+            <p className="text-sm text-[#E3C463]">
               Claimable: {claimableETH} ETH
             </p>
             <Button
@@ -447,16 +502,18 @@ export default function Home() {
                      hover:-translate-y-1"
         >
           <CardHeader>
-            <CardTitle>Network</CardTitle>
+            <CardTitle className="text-white">
+              Network
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <p>
+            <p className="text-sm text-white">
               Total Supply:{" "}
               <span className="font-semibold">
                 {totalSupply}
               </span>
             </p>
-            <p className="text-[#E3C463]">
+            <p className="text-sm text-[#E3C463]">
               Total Revenue: {totalRevenue} ETH
             </p>
           </CardContent>
