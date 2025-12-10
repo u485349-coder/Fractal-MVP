@@ -1,8 +1,8 @@
-// components/FractalNavbar.tsx
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 const navLinkStyle = (active: boolean): React.CSSProperties => ({
   fontSize: 13,
@@ -10,7 +10,7 @@ const navLinkStyle = (active: boolean): React.CSSProperties => ({
   textTransform: "uppercase",
   color: active ? "#facc6b" : "#e5e7eb",
   textDecoration: "none",
-  padding: "4px 12px",
+  padding: "6px 14px",
   borderRadius: 999,
   border: active
     ? "1px solid rgba(250,204,107,0.5)"
@@ -19,6 +19,12 @@ const navLinkStyle = (active: boolean): React.CSSProperties => ({
 
 export default function FractalNavbar() {
   const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+
+  // ✅ close mobile menu on navigation
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
 
   return (
     <header
@@ -28,7 +34,8 @@ export default function FractalNavbar() {
         zIndex: 30,
         borderBottom: "1px solid rgba(148,163,184,0.2)",
         backdropFilter: "blur(16px)",
-        background: "linear-gradient(to bottom, rgba(0,0,0,0.9), transparent)",
+        background:
+          "linear-gradient(to bottom, rgba(0,0,0,0.9), transparent)",
       }}
     >
       <div
@@ -38,13 +45,17 @@ export default function FractalNavbar() {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "14px 20px",
+          padding: "12px 16px",
         }}
       >
         {/* LOGO */}
         <Link
           href="/"
-          style={{ display: "flex", alignItems: "center", gap: 10 }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+          }}
         >
           <div
             style={{
@@ -65,7 +76,7 @@ export default function FractalNavbar() {
 
           <span
             style={{
-              fontSize: 16,
+              fontSize: 15,
               letterSpacing: 6,
               textTransform: "uppercase",
             }}
@@ -74,8 +85,8 @@ export default function FractalNavbar() {
           </span>
         </Link>
 
-        {/* NAV */}
-        <nav style={{ display: "flex", gap: 14, alignItems: "center" }}>
+        {/* DESKTOP NAV */}
+        <nav className="fractal-desktop-nav">
           <Link href="/" style={navLinkStyle(pathname === "/")}>
             Investor
           </Link>
@@ -94,10 +105,85 @@ export default function FractalNavbar() {
             Create Project
           </Link>
 
-          <Link href="/dashboard">Creator Dashboard</Link>
-
+          <Link
+            href="/dashboard"
+            style={navLinkStyle(pathname.startsWith("/dashboard"))}
+          >
+            Creator Dashboard
+          </Link>
         </nav>
+
+        {/* MOBILE MENU BUTTON */}
+        <button
+          onClick={() => setOpen((o) => !o)}
+          style={{
+            border: "1px solid rgba(75,85,99,0.7)",
+            borderRadius: 10,
+            padding: "6px 10px",
+            fontSize: 14,
+            background: "#020617",
+            color: "#e5e7eb",
+          }}
+        >
+          ☰
+        </button>
       </div>
+
+      {/* MOBILE DROPDOWN */}
+      {open && (
+        <div
+          style={{
+            padding: "12px 16px 16px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+            borderTop: "1px solid rgba(148,163,184,0.15)",
+            background: "#020617",
+          }}
+        >
+          <Link href="/" style={navLinkStyle(pathname === "/")}>
+            Investor
+          </Link>
+
+          <Link
+            href="/marketplace"
+            style={navLinkStyle(pathname.startsWith("/marketplace"))}
+          >
+            Marketplace
+          </Link>
+
+          <Link
+            href="/creator"
+            style={navLinkStyle(pathname === "/creator")}
+          >
+            Create Project
+          </Link>
+
+          <Link
+            href="/dashboard"
+            style={navLinkStyle(pathname.startsWith("/dashboard"))}
+          >
+            Creator Dashboard
+          </Link>
+        </div>
+      )}
+
+      <style jsx>{`
+        nav.fractal-desktop-nav {
+          display: none;
+          gap: 14px;
+          align-items: center;
+        }
+
+        @media (min-width: 768px) {
+          nav.fractal-desktop-nav {
+            display: flex;
+          }
+          button {
+            display: none;
+          }
+        }
+      `}</style>
     </header>
   );
 }
