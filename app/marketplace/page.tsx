@@ -37,7 +37,9 @@ export default function MarketplacePage() {
   const [projects, setProjects] = useState<MarketProject[]>([]);
   const [buyingId, setBuyingId] = useState<number | null>(null);
 
-  // ✅ hydration guard
+  // ✅ UI-only: expanded project (mobile dropdown)
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -71,15 +73,14 @@ export default function MarketplacePage() {
       const revenue = p[2];
       const assetURI = p[3];
 
-      // get price per token for UI
       const revenueContract = new ethers.Contract(
         revenue,
         REVENUE_ABI,
         provider
       );
+
       const priceWei: bigint =
         await revenueContract.pricePerTokenWei();
-      const priceETH = ethers.formatEther(priceWei);
 
       items.push({
         id: i,
@@ -87,7 +88,7 @@ export default function MarketplacePage() {
         fcat,
         revenue,
         assetURI,
-        priceETH,
+        priceETH: ethers.formatEther(priceWei),
       });
     }
 
@@ -132,118 +133,86 @@ export default function MarketplacePage() {
 
   return (
     <FractalShell>
-      <h1 style={{ fontSize: 24, marginBottom: 12 }}>
+      <h1 className="text-2xl text-white mb-2">
         Fractal Marketplace
       </h1>
 
-      <p
-        style={{
-          color: "#9ca3af",
-          marginBottom: 24,
-          fontSize: 14,
-        }}
-      >
-        Browse live creator projects. Each card represents a FCAT you
-        can buy into.
+      <p className="text-sm text-zinc-400 mb-6">
+        Browse live creator projects. Each FCAT lets you invest
+        directly in a creator’s work.
       </p>
 
       {projects.length === 0 && (
-        <p style={{ color: "#9ca3af" }}>No projects yet.</p>
+        <p className="text-zinc-400">No projects yet.</p>
       )}
 
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 14,
-        }}
-      >
-        {projects.map((p) => (
-          <div
-            key={p.id}
-            style={{
-              borderRadius: 16,
-              border: "1px solid rgba(55,65,81,0.9)",
-              padding: 14,
-              background:
-                "radial-gradient(circle at top left, rgba(148,163,184,0.18), transparent 70%)",
-            }}
-          >
+      <div className="flex flex-col gap-4">
+        {projects.map((p) => {
+          const expanded = expandedId === p.id;
+
+          return (
             <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-start",
-                gap: 16,
-              }}
+              key={p.id}
+              className="rounded-xl border border-zinc-700 bg-zinc-900/80 overflow-hidden"
             >
-              <div>
-                <p
-                  style={{
-                    fontSize: 13,
-                    color: "#9ca3af",
-                  }}
-                >
-                  Asset
-                </p>
-                <p style={{ fontSize: 18 }}>{p.assetURI}</p>
+              {/* HEADER (always visible) */}
+              <button
+                onClick={() =>
+                  setExpandedId(expanded ? null : p.id)
+                }
+                className="w-full text-left px-4 py-4 flex justify-between items-center"
+              >
+                <div>
+                  <p className="text-xs text-zinc-400">
+                    Asset
+                  </p>
+                  <p className="text-lg text-white">
+                    {p.assetURI}
+                  </p>
+                </div>
 
-                <p
-                  style={{
-                    marginTop: 6,
-                    fontSize: 13,
-                    color: "#9ca3af",
-                  }}
-                >
-                  Creator
-                </p>
-                <p style={{ fontSize: 14 }}>
-                  {p.creator.slice(0, 6)}…
-                  {p.creator.slice(-4)}
-                </p>
+                <span className="text-[#E3C463] text-sm">
+                  {expanded ? "▲" : "▼"}
+                </span>
+              </button>
 
-                <p
-                  style={{
-                    marginTop: 6,
-                    fontSize: 13,
-                    color: "#9ca3af",
-                  }}
-                >
-                  Price
-                </p>
-                <p
-                  style={{
-                    fontSize: 14,
-                    color: "#FACC6B",
-                  }}
-                >
-                  {p.priceETH} ETH / FCAT
-                </p>
-              </div>
+              {/* DROPDOWN BODY */}
+              {expanded && (
+                <div className="px-4 pb-4 space-y-3 text-sm">
+                  <div>
+                    <p className="text-zinc-400">Creator</p>
+                    <p className="text-white">
+                      {p.creator.slice(0, 6)}…
+                      {p.creator.slice(-4)}
+                    </p>
+                  </div>
 
-              <div style={{ textAlign: "right" }}>
-                <button
-                  onClick={() => buyOne(p)}
-                  disabled={buyingId === p.id}
-                  style={{
-                    padding: "8px 18px",
-                    borderRadius: 999,
-                    border: "none",
-                    background:
-                      "linear-gradient(to right, #facc6b, #a855f7, #38bdf8)",
-                    color: "#020617",
-                    fontWeight: 600,
-                    cursor:
-                      buyingId === p.id ? "wait" : "pointer",
-                    fontSize: 13,
-                  }}
-                >
-                  {buyingId === p.id ? "Buying…" : "Buy 1 FCAT"}
-                </button>
-              </div>
+                  <div>
+                    <p className="text-zinc-400">Price</p>
+                    <p className="text-[#E3C463]">
+                      {p.priceETH} ETH / FCAT
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => buyOne(p)}
+                    disabled={buyingId === p.id}
+                    className={`w-full mt-3 py-2 rounded-full font-semibold text-sm
+                      ${
+                        buyingId === p.id
+                          ? "bg-zinc-700 text-zinc-300 cursor-wait"
+                          : "bg-gradient-to-r from-yellow-300 via-purple-500 to-sky-400 text-black hover:opacity-90"
+                      }`}
+                  >
+                    {buyingId === p.id
+                      ? "Buying…"
+                      : "Buy 1 FCAT"}
+                  </button>
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </FractalShell>
   );

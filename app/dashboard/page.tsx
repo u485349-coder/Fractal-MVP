@@ -1,4 +1,3 @@
-// app/creator/dashboard/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -51,13 +50,13 @@ export default function CreatorDashboard() {
   const [projects, setProjects] = useState<CreatorProject[]>([]);
   const [withdrawingId, setWithdrawingId] = useState<number | null>(null);
 
-  // ✅ NEW STATE (DEPOSIT)
   const [depositAmount, setDepositAmount] = useState<
     Record<number, string>
   >({});
-  const [depositingId, setDepositingId] = useState<number | null>(
-    null
-  );
+  const [depositingId, setDepositingId] = useState<number | null>(null);
+
+  // ✅ UI-only: dropdown state
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -96,7 +95,6 @@ export default function CreatorDashboard() {
 
     for (let i = 0; i < Number(count); i++) {
       const p = await registry.getProject(i);
-
       const creator = p[0];
       if (creator.toLowerCase() !== addr.toLowerCase()) continue;
 
@@ -153,7 +151,6 @@ export default function CreatorDashboard() {
     }
   }
 
-  // ✅ NEW: DEPOSIT EXTERNAL REVENUE
   async function depositRevenue(
     project: CreatorProject,
     amountEth: string
@@ -198,155 +195,139 @@ export default function CreatorDashboard() {
 
   return (
     <FractalShell>
-      <h1 style={{ fontSize: 26, marginBottom: 10 }}>
+      <h1 className="text-2xl text-white mb-2">
         Creator Dashboard
       </h1>
 
-      <p style={{ color: "#9ca3af", marginBottom: 24 }}>
-        View your projects, revenue, and deposit or withdraw
-        earnings.
+      <p className="text-sm text-zinc-400 mb-6">
+        Manage your projects, revenue, deposits, and
+        withdrawals.
       </p>
 
       {projects.length === 0 && (
-        <p style={{ color: "#9ca3af" }}>
+        <p className="text-zinc-400">
           No projects found for this wallet.
         </p>
       )}
 
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 16,
-        }}
-      >
-        {projects.map((p) => (
-          <div
-            key={p.id}
-            style={{
-              borderRadius: 16,
-              border:
-                "1px solid rgba(55,65,81,0.9)",
-              padding: 18,
-              background:
-                "radial-gradient(circle at top left, rgba(148,163,184,0.18), transparent 70%)",
-            }}
-          >
-            <p
-              style={{ fontSize: 18, marginBottom: 4 }}
+      <div className="flex flex-col gap-4">
+        {projects.map((p) => {
+          const expanded = expandedId === p.id;
+
+          return (
+            <div
+              key={p.id}
+              className="rounded-xl border border-zinc-700 bg-zinc-900/80 overflow-hidden"
             >
-              {p.asset}
-            </p>
+              {/* HEADER */}
+              <button
+                onClick={() =>
+                  setExpandedId(expanded ? null : p.id)
+                }
+                className="w-full text-left px-4 py-4 flex justify-between items-center"
+              >
+                <div>
+                  <p className="text-xs text-zinc-400">
+                    Project
+                  </p>
+                  <p className="text-lg text-white">
+                    {p.asset}
+                  </p>
+                </div>
 
-            <p
-              style={{ fontSize: 13, color: "#9ca3af" }}
-            >
-              Total Revenue: {p.totalRevenue} ETH
-            </p>
+                <span className="text-[#E3C463] text-sm">
+                  {expanded ? "▲" : "▼"}
+                </span>
+              </button>
 
-            <p style={{ fontSize: 13 }}>
-              Creator Gross: {p.gross} ETH
-            </p>
+              {/* DROPDOWN BODY */}
+              {expanded && (
+                <div className="px-4 pb-4 space-y-3 text-sm">
+                  <p className="text-zinc-300">
+                    Total Revenue:{" "}
+                    <span className="text-white">
+                      {p.totalRevenue} ETH
+                    </span>
+                  </p>
 
-            <p style={{ fontSize: 13 }}>
-              Claimed: {p.claimed} ETH
-            </p>
+                  <p className="text-zinc-300">
+                    Creator Gross:{" "}
+                    <span className="text-white">
+                      {p.gross} ETH
+                    </span>
+                  </p>
 
-            <p
-              style={{ fontSize: 14, color: "#facc6b" }}
-            >
-              Remaining: {p.remaining} ETH
-            </p>
+                  <p className="text-zinc-300">
+                    Claimed:{" "}
+                    <span className="text-white">
+                      {p.claimed} ETH
+                    </span>
+                  </p>
 
-            {/* ✅ DEPOSIT EXTERNAL REVENUE */}
-            <input
-              type="number"
-              step="0.0001"
-              placeholder="ETH to deposit"
-              value={depositAmount[p.id] || ""}
-              onChange={(e) =>
-                setDepositAmount((prev) => ({
-                  ...prev,
-                  [p.id]: e.target.value,
-                }))
-              }
-              style={{
-                width: "100%",
-                marginTop: 12,
-                padding: "8px 12px",
-                borderRadius: 12,
-                border:
-                  "1px solid rgba(55,65,81,0.9)",
-                background: "#020617",
-                color: "#e5e7eb",
-              }}
-            />
+                  <p className="text-[#E3C463]">
+                    Remaining: {p.remaining} ETH
+                  </p>
 
-            <button
-              onClick={() =>
-                depositRevenue(
-                  p,
-                  depositAmount[p.id] || ""
-                )
-              }
-              disabled={depositingId === p.id}
-              style={{
-                marginTop: 10,
-                padding: "8px 16px",
-                borderRadius: 999,
-                border: "none",
-                background:
-                  "linear-gradient(to right, #38bdf8, #22c55e)",
-                color: "#020617",
-                fontWeight: 600,
-                cursor:
-                  depositingId === p.id
-                    ? "wait"
-                    : "pointer",
-              }}
-            >
-              {depositingId === p.id
-                ? "Depositing…"
-                : "Deposit External Revenue"}
-            </button>
+                  {/* DEPOSIT */}
+                  <input
+                    type="number"
+                    step="0.0001"
+                    placeholder="ETH to deposit"
+                    value={depositAmount[p.id] || ""}
+                    onChange={(e) =>
+                      setDepositAmount((prev) => ({
+                        ...prev,
+                        [p.id]: e.target.value,
+                      }))
+                    }
+                    className="w-full mt-2 px-3 py-2 rounded-lg border border-zinc-700 bg-black text-white text-sm"
+                  />
 
-            <p
-              style={{
-                fontSize: 11,
-                color: "#9ca3af",
-                marginTop: 4,
-              }}
-            >
-              This action is irreversible. Deposited
-              funds are automatically shared with FCAT
-              holders per the revenue split.
-            </p>
+                  <button
+                    onClick={() =>
+                      depositRevenue(
+                        p,
+                        depositAmount[p.id] || ""
+                      )
+                    }
+                    disabled={depositingId === p.id}
+                    className={`w-full py-2 rounded-full font-semibold text-sm
+                      ${
+                        depositingId === p.id
+                          ? "bg-zinc-700 text-zinc-300 cursor-wait"
+                          : "bg-gradient-to-r from-sky-400 to-emerald-400 text-black"
+                      }`}
+                  >
+                    {depositingId === p.id
+                      ? "Depositing…"
+                      : "Deposit External Revenue"}
+                  </button>
 
-            {/* ✅ WITHDRAW CREATOR EARNINGS */}
-            <button
-              onClick={() => withdraw(p)}
-              disabled={withdrawingId === p.id}
-              style={{
-                marginTop: 10,
-                padding: "8px 16px",
-                borderRadius: 999,
-                border: "none",
-                background:
-                  "linear-gradient(to right, #facc6b, #a855f7, #38bdf8)",
-                color: "#020617",
-                fontWeight: 600,
-                cursor:
-                  withdrawingId === p.id
-                    ? "wait"
-                    : "pointer",
-              }}
-            >
-              {withdrawingId === p.id
-                ? "Withdrawing…"
-                : "Withdraw Earnings"}
-            </button>
-          </div>
-        ))}
+                  <p className="text-xs text-zinc-400">
+                    Deposited funds are shared automatically
+                    with FCAT holders.
+                  </p>
+
+                  {/* WITHDRAW */}
+                  <button
+                    onClick={() => withdraw(p)}
+                    disabled={withdrawingId === p.id}
+                    className={`w-full py-2 rounded-full font-semibold text-sm
+                      ${
+                        withdrawingId === p.id
+                          ? "bg-zinc-700 text-zinc-300 cursor-wait"
+                          : "bg-gradient-to-r from-yellow-300 via-purple-500 to-sky-400 text-black"
+                      }`}
+                  >
+                    {withdrawingId === p.id
+                      ? "Withdrawing…"
+                      : "Withdraw Earnings"}
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </FractalShell>
   );
