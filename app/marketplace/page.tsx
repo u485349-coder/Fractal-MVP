@@ -49,12 +49,12 @@ export default function MarketplacePage() {
     loadProjects();
   }, [mounted]);
 
+  // ✅ FIXED: mobile-safe, read-only provider fallback
   async function loadProjects() {
-    if (!(window as any).ethereum) return;
-
-    const provider = new ethers.BrowserProvider(
+    const provider =
       (window as any).ethereum
-    );
+        ? new ethers.BrowserProvider((window as any).ethereum)
+        : new ethers.JsonRpcProvider("https://rpc.sepolia.org");
 
     const registry = new ethers.Contract(
       REGISTRY_ADDRESS,
@@ -98,7 +98,7 @@ export default function MarketplacePage() {
   async function buyOne(p: MarketProject) {
     try {
       if (!(window as any).ethereum) {
-        alert("MetaMask not found");
+        alert("Open this page inside MetaMask to buy");
         return;
       }
 
@@ -155,7 +155,7 @@ export default function MarketplacePage() {
               key={p.id}
               className="rounded-xl border border-zinc-700 bg-zinc-900/80 overflow-hidden"
             >
-              {/* HEADER (always visible) */}
+              {/* HEADER */}
               <button
                 onClick={() =>
                   setExpandedId(expanded ? null : p.id)
@@ -163,9 +163,7 @@ export default function MarketplacePage() {
                 className="w-full text-left px-4 py-4 flex justify-between items-center"
               >
                 <div>
-                  <p className="text-xs text-zinc-400">
-                    Asset
-                  </p>
+                  <p className="text-xs text-zinc-400">Asset</p>
                   <p className="text-lg text-white">
                     {p.assetURI}
                   </p>
@@ -176,7 +174,7 @@ export default function MarketplacePage() {
                 </span>
               </button>
 
-              {/* DROPDOWN BODY */}
+              {/* BODY */}
               {expanded && (
                 <div className="px-4 pb-4 space-y-3 text-sm">
                   <div>

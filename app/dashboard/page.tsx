@@ -55,7 +55,6 @@ export default function CreatorDashboard() {
   >({});
   const [depositingId, setDepositingId] = useState<number | null>(null);
 
-  // ✅ UI-only: dropdown state
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -64,39 +63,45 @@ export default function CreatorDashboard() {
 
   useEffect(() => {
     if (!mounted) return;
-    void connect();
+    void loadCreatorProjects();
   }, [mounted]);
 
-  async function connect() {
-    if (!(window as any).ethereum) return;
+  /* ==============================
+     READ-ONLY LOAD (MOBILE SAFE)
+  ============================= */
 
-    const provider = new ethers.BrowserProvider(
+  async function loadCreatorProjects() {
+    const provider =
       (window as any).ethereum
-    );
-    const signer = await provider.getSigner();
-    const addr = await signer.getAddress();
+        ? new ethers.BrowserProvider((window as any).ethereum)
+        : new ethers.JsonRpcProvider("https://rpc.sepolia.org");
 
-    setAccount(addr);
-    await loadCreatorProjects(addr, provider);
-  }
-
-  async function loadCreatorProjects(
-    addr: string,
-    provider: ethers.BrowserProvider
-  ) {
     const registry = new ethers.Contract(
       REGISTRY_ADDRESS,
       REGISTRY_ABI,
       provider
     );
 
+    let addr = account;
+
+    // only resolve address if MetaMask exists
+    if ((window as any).ethereum && !addr) {
+      const signer = await (
+        provider as ethers.BrowserProvider
+      ).getSigner();
+      addr = await signer.getAddress();
+      setAccount(addr);
+    }
+
+    if (!addr) return;
+
     const count: bigint = await registry.projectCount();
     const items: CreatorProject[] = [];
 
     for (let i = 0; i < Number(count); i++) {
       const p = await registry.getProject(i);
-      const creator = p[0];
-      if (creator.toLowerCase() !== addr.toLowerCase()) continue;
+
+      if (p[0].toLowerCase() !== addr.toLowerCase()) continue;
 
       const revenueContract = new ethers.Contract(
         p[2],
@@ -121,9 +126,16 @@ export default function CreatorDashboard() {
     setProjects(items);
   }
 
+  /* ==============================
+     WRITE ACTIONS (METAMASK ONLY)
+  ============================= */
+
   async function withdraw(project: CreatorProject) {
     try {
-      if (!(window as any).ethereum) return;
+      if (!(window as any).ethereum) {
+        alert("Open in MetaMask to withdraw");
+        return;
+      }
 
       setWithdrawingId(project.id);
 
@@ -141,7 +153,7 @@ export default function CreatorDashboard() {
       const tx = await revenue.creatorWithdraw();
       await tx.wait();
 
-      await connect();
+      await loadCreatorProjects();
       alert("✅ Creator earnings withdrawn");
     } catch (e: any) {
       console.error(e);
@@ -156,7 +168,10 @@ export default function CreatorDashboard() {
     amountEth: string
   ) {
     try {
-      if (!(window as any).ethereum) return;
+      if (!(window as any).ethereum) {
+        alert("Open in MetaMask to deposit");
+        return;
+      }
       if (!amountEth || Number(amountEth) <= 0) {
         alert("Enter a valid ETH amount");
         return;
@@ -181,7 +196,7 @@ export default function CreatorDashboard() {
         [project.id]: "",
       }));
 
-      await connect();
+      await loadCreatorProjects();
       alert("✅ External revenue deposited");
     } catch (e: any) {
       console.error(e);
@@ -200,8 +215,7 @@ export default function CreatorDashboard() {
       </h1>
 
       <p className="text-sm text-zinc-400 mb-6">
-        Manage your projects, revenue, deposits, and
-        withdrawals.
+        Manage your projects, revenue, deposits, and withdrawals.
       </p>
 
       {projects.length === 0 && (
@@ -219,7 +233,6 @@ export default function CreatorDashboard() {
               key={p.id}
               className="rounded-xl border border-zinc-700 bg-zinc-900/80 overflow-hidden"
             >
-              {/* HEADER */}
               <button
                 onClick={() =>
                   setExpandedId(expanded ? null : p.id)
@@ -227,39 +240,36 @@ export default function CreatorDashboard() {
                 className="w-full text-left px-4 py-4 flex justify-between items-center"
               >
                 <div>
-                  <p className="text-xs text-zinc-400">
-                    Project
-                  </p>
-                  <p className="text-lg text-white">
-                    {p.asset}
-                  </p>
+                  <p className="text-xs text-zinc-400">Project</p>
+                  <p className="text-lg text-white">{p.asset}</p>
                 </div>
-
                 <span className="text-[#E3C463] text-sm">
                   {expanded ? "▲" : "▼"}
                 </span>
               </button>
 
-              {/* DROPDOWN BODY */}
               {expanded && (
                 <div className="px-4 pb-4 space-y-3 text-sm">
                   <p className="text-zinc-300">
-                    Total Revenue:{" "}
+                    Total Revenue:
                     <span className="text-white">
+                      {" "}
                       {p.totalRevenue} ETH
                     </span>
                   </p>
 
                   <p className="text-zinc-300">
-                    Creator Gross:{" "}
+                    Creator Gross:
                     <span className="text-white">
+                      {" "}
                       {p.gross} ETH
                     </span>
                   </p>
 
                   <p className="text-zinc-300">
-                    Claimed:{" "}
+                    Claimed:
                     <span className="text-white">
+                      {" "}
                       {p.claimed} ETH
                     </span>
                   </p>
@@ -268,7 +278,6 @@ export default function CreatorDashboard() {
                     Remaining: {p.remaining} ETH
                   </p>
 
-                  {/* DEPOSIT */}
                   <input
                     type="number"
                     step="0.0001"
@@ -303,12 +312,6 @@ export default function CreatorDashboard() {
                       : "Deposit External Revenue"}
                   </button>
 
-                  <p className="text-xs text-zinc-400">
-                    Deposited funds are shared automatically
-                    with FCAT holders.
-                  </p>
-
-                  {/* WITHDRAW */}
                   <button
                     onClick={() => withdraw(p)}
                     disabled={withdrawingId === p.id}
