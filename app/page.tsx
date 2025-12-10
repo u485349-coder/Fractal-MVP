@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, ChangeEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ethers } from "ethers";
@@ -17,9 +17,17 @@ import {
 /* ==============================
    CONFIG — SEPOLIA
 ============================== */
-const FCAT_ADDRESS = "0x77308C24544364130039dCBEfe16528E9D708315";
-const REVENUE_ADDRESS = "0x76a34937656481738955f24578476eaa3c48a38f";
 
+// Registry of all projects
+const REGISTRY_ADDRESS =
+  "0x1f10fB380ecB3465193B0d2B52af2C7cE20fdCCe";
+
+const REGISTRY_ABI = [
+  "function projectCount() view returns (uint256)",
+  "function getProject(uint256 id) view returns (address creator, address fcat, address revenue, string assetURI)",
+];
+
+// Per-project FCAT + Revenue contracts
 const FCAT_ABI = [
   "function balanceOf(address) view returns (uint256)",
   "function totalSupply() view returns (uint256)",
@@ -27,11 +35,19 @@ const FCAT_ABI = [
 
 const REV_ABI = [
   "function pricePerTokenWei() view returns (uint256)",
-  "function buy(uint256 amount) payable",
   "function claimable(address) view returns (uint256)",
   "function claimRevenue()",
   "function totalRevenue() view returns (uint256)",
 ];
+
+type HoldingProject = {
+  id: number;
+  creator: string;
+  fcat: string;
+  revenue: string;
+  assetURI: string;
+  balance: bigint;
+};
 
 export default function Home() {
   const [provider, setProvider] =
@@ -42,7 +58,16 @@ export default function Home() {
   const [connected, setConnected] = useState(false);
   const [pulseHero, setPulseHero] = useState(false);
 
-  const [amount, setAmount] = useState(1);
+  // wallet’s FCAT holdings
+  const [projects, setProjects] = useState<HoldingProject[]>([]);
+  const [selectedId, setSelectedId] = useState<number | null>(
+    null
+  );
+  const [loadingProjects, setLoadingProjects] =
+    useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // metrics for selected FCAT
   const [price, setPrice] = useState("0");
   const [fcatBalance, setFcatBalance] = useState("0");
   const [claimableETH, setClaimableETH] = useState("0");
@@ -50,9 +75,15 @@ export default function Home() {
   const [totalRevenue, setTotalRevenue] = useState("0");
   const [status, setStatus] = useState("");
 
+  const selectedProject =
+    projects.find((p) => p.id === selectedId) || null;
+
   async function connectWallet() {
     const ethereum = (window as any).ethereum;
-    if (!ethereum) return alert("MetaMask not detected");
+    if (!ethereum) {
+      alert("MetaMask not detected");
+      return;
+    }
 
     await ethereum.request({ method: "eth_requestAccounts" });
 
@@ -68,70 +99,167 @@ export default function Home() {
     setPulseHero(true);
     setTimeout(() => setPulseHero(false), 1200);
 
-    refreshData(addr, prov);
+    await loadWalletHoldings(addr, prov);
   }
 
-  async function refreshData(addr = address, prov = provider) {
-    if (!addr || !prov) return;
+  async function loadWalletHoldings(
+    addr: string,
+    prov: ethers.BrowserProvider
+  ) {
+    setLoadingProjects(true);
+    setStatus("Loading your FCAT holdings…");
 
-    const fcat = new ethers.Contract(
-      FCAT_ADDRESS,
-      FCAT_ABI,
-      prov
-    );
-    const rev = new ethers.Contract(
-      REVENUE_ADDRESS,
-      REV_ABI,
-      prov
-    );
+    try {
+      const registry = new ethers.Contract(
+        REGISTRY_ADDRESS,
+        REGISTRY_ABI,
+        prov
+      );
 
-    setFcatBalance((await fcat.balanceOf(addr)).toString());
-    setTotalSupply((await fcat.totalSupply()).toString());
-    setClaimableETH(
-      ethers.formatEther(await rev.claimable(addr))
-    );
-    setTotalRevenue(
-      ethers.formatEther(await rev.totalRevenue())
-    );
-    setPrice(
-      ethers.formatEther(await rev.pricePerTokenWei())
-    );
+      const countBN: bigint = await registry.projectCount();
+      const count = Number(countBN);
+
+      const holdings: HoldingProject[] = [];
+
+      for (let i = 0; i < count; i++) {
+        const p = await registry.getProject(i);
+        const creator = p[0];
+        const fcat = p[1];
+        const revenue = p[2];
+        const assetURI = p[3];
+
+        const fcatContract = new ethers.Contract(
+          fcat,
+          FCAT_ABI,
+          prov
+        );
+        const bal: bigint = await fcatContract.balanceOf(
+          addr
+        );
+
+        // Only include FCATs this wallet actually holds
+        if (bal > 0n) {
+          holdings.push({
+            id: i,
+            creator,
+            fcat,
+            revenue,
+            assetURI,
+            balance: bal,
+          });
+        }
+      }
+
+      setProjects(holdings);
+
+      if (holdings.length > 0) {
+        setSelectedId(holdings[0].id);
+        await refreshDataFor(holdings[0], addr, prov);
+        setStatus("Ready");
+      } else {
+        setSelectedId(null);
+        resetStats();
+        setStatus(
+          "You do not hold any FCAT yet. Visit the marketplace to buy in."
+        );
+      }
+    } catch (err) {
+      console.error(err);
+      setStatus("Failed to load holdings");
+    } finally {
+      setLoadingProjects(false);
+    }
   }
 
-  async function buyTokens() {
-    if (!signer) return;
-    setStatus("Buying FCAT…");
+  function resetStats() {
+    setPrice("0");
+    setFcatBalance("0");
+    setClaimableETH("0");
+    setTotalSupply("0");
+    setTotalRevenue("0");
+  }
 
-    const rev = new ethers.Contract(
-      REVENUE_ADDRESS,
-      REV_ABI,
-      signer
-    );
-    const unitPrice = await rev.pricePerTokenWei();
+  async function refreshDataFor(
+    proj: HoldingProject,
+    addr = address,
+    prov = provider
+  ) {
+    if (!addr || !prov || !proj) return;
 
-    await (
-      await rev.buy(amount, {
-        value: unitPrice * BigInt(amount),
-      })
-    ).wait();
+    setRefreshing(true);
+    try {
+      const fcat = new ethers.Contract(
+        proj.fcat,
+        FCAT_ABI,
+        prov
+      );
+      const rev = new ethers.Contract(
+        proj.revenue,
+        REV_ABI,
+        prov
+      );
 
-    await refreshData();
-    setStatus("Purchase complete");
+      const [bal, supply, claimableWei, totalRevWei, unitPrice] =
+        await Promise.all([
+          fcat.balanceOf(addr),
+          fcat.totalSupply(),
+          rev.claimable(addr),
+          rev.totalRevenue(),
+          rev.pricePerTokenWei(),
+        ]);
+
+      setFcatBalance(bal.toString());
+      setTotalSupply(supply.toString());
+      setClaimableETH(ethers.formatEther(claimableWei));
+      setTotalRevenue(ethers.formatEther(totalRevWei));
+      setPrice(ethers.formatEther(unitPrice));
+    } catch (err) {
+      console.error(err);
+      setStatus("Failed to refresh metrics");
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  async function handleSelectChange(
+    e: ChangeEvent<HTMLSelectElement>
+  ) {
+    const id = Number(e.target.value);
+    setSelectedId(id);
+
+    const proj = projects.find((p) => p.id === id);
+    if (proj && provider && address) {
+      await refreshDataFor(proj, address, provider);
+    }
   }
 
   async function claimRevenue() {
-    if (!signer) return;
+    if (!signer || !selectedProject) return;
     setStatus("Claiming revenue…");
 
-    const rev = new ethers.Contract(
-      REVENUE_ADDRESS,
-      REV_ABI,
-      signer
-    );
-    await (await rev.claimRevenue()).wait();
+    try {
+      const rev = new ethers.Contract(
+        selectedProject.revenue,
+        REV_ABI,
+        signer
+      );
+      const tx = await rev.claimRevenue();
+      await tx.wait();
 
-    await refreshData();
-    setStatus("Revenue claimed");
+      setStatus("Revenue claimed");
+      if (provider && address) {
+        await refreshDataFor(
+          selectedProject,
+          address,
+          provider
+        );
+      }
+    } catch (err: any) {
+      console.error(err);
+      setStatus(
+        err?.reason || err?.message || "Failed to claim"
+      );
+    }
   }
 
   return (
@@ -143,11 +271,17 @@ export default function Home() {
         </span>
 
         <div className="flex gap-8 text-sm items-center">
-          <Link href="/marketplace" className="hover:text-[#F7E7A5] transition">
+          <Link
+            href="/marketplace"
+            className="hover:text-[#F7E7A5] transition"
+          >
             Marketplace
           </Link>
 
-          <Link href="/dashboard" className="hover:text-[#F7E7A5] transition">
+          <Link
+            href="/dashboard"
+            className="hover:text-[#F7E7A5] transition"
+          >
             Creator Dashboard
           </Link>
 
@@ -185,72 +319,148 @@ export default function Home() {
               Connect Wallet
             </Button>
           ) : (
-            <p className="text-sm text-[#E3C463]">{status}</p>
+            <p className="text-sm text-[#E3C463]">
+              {refreshing
+                ? "Refreshing…"
+                : status || "Ready"}
+            </p>
           )}
         </div>
       </section>
 
       {/* DASHBOARD */}
       <section className="grid md:grid-cols-3 gap-10 max-w-6xl mx-auto px-8 pb-24 pt-24">
-        {[
-          {
-            title: "Buy FCAT",
-            body: (
-              <>
-                <input
-                  type="number"
-                  value={amount}
-                  onChange={(e) => setAmount(+e.target.value)}
-                  className="w-full p-3 bg-black border border-zinc-600 rounded text-white"
-                />
-                <p className="mt-3 text-[#E3C463]">{price} ETH</p>
-                <Button onClick={buyTokens} className="w-full mt-4">
-                  Buy FCAT
-                </Button>
-              </>
-            ),
-          },
-          {
-            title: "Your Holdings",
-            body: (
-              <>
-                <p>
-                  FCAT: <span className="font-semibold">{fcatBalance}</span>
+        {/* LEFT CARD: FCAT SELECTOR */}
+        <Card
+          className="bg-zinc-900/85 border border-[#C9A84F]/40 transition-all
+                     hover:border-[#F7E7A5]
+                     hover:shadow-[0_0_40px_rgba(234,179,8,0.25)]
+                     hover:-translate-y-1"
+        >
+          <CardHeader>
+            <CardTitle>Select FCAT</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!connected && (
+              <p className="text-sm text-zinc-400">
+                Connect your wallet to see your FCAT holdings.
+              </p>
+            )}
+
+            {connected && loadingProjects && (
+              <p className="text-sm text-zinc-400">
+                Loading your projects…
+              </p>
+            )}
+
+            {connected &&
+              !loadingProjects &&
+              projects.length === 0 && (
+                <p className="text-sm text-zinc-400">
+                  You do not hold any FCAT yet.{" "}
+                  <Link
+                    href="/marketplace"
+                    className="text-[#F7E7A5] underline"
+                  >
+                    Browse the marketplace
+                  </Link>{" "}
+                  to buy in.
                 </p>
-                <p className="text-[#E3C463] mt-1">
-                  Claimable: {claimableETH} ETH
-                </p>
-                <Button onClick={claimRevenue} className="w-full mt-4">
-                  Claim
-                </Button>
-              </>
-            ),
-          },
-          {
-            title: "Network",   // ✅ ONLY WORD CHANGED
-            body: (
-              <>
-                <p>
-                  Total Supply:{" "}
-                  <span className="font-semibold">{totalSupply}</span>
-                </p>
-                <p className="text-[#E3C463]">
-                  Total Revenue: {totalRevenue} ETH
-                </p>
-              </>
-            ),
-          },
-        ].map(({ title, body }, i) => (
-          <Card
-            key={i}
-            className="bg-zinc-900/85 border border-[#C9A84F]/40 hover:border-[#F7E7A5] transition-all"
-          >
-            <CardHeader>
-              <CardTitle>{title}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">{body}</CardContent>
-          </Card>
-        ))}
+              )}
+
+            {connected &&
+              !loadingProjects &&
+              projects.length > 0 && (
+                <>
+                  <select
+                    value={
+                      selectedId !== null ? selectedId : undefined
+                    }
+                    onChange={handleSelectChange}
+                    className="w-full p-3 bg-black border border-zinc-600 rounded text-white text-sm"
+                  >
+                    {projects.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.assetURI || "Untitled"} •{" "}
+                        {p.fcat.slice(0, 6)}…{p.fcat.slice(-4)}
+                      </option>
+                    ))}
+                  </select>
+
+                  {selectedProject && (
+                    <div className="text-sm text-zinc-300 space-y-1">
+                      <p>
+                        Creator:{" "}
+                        <span className="font-mono text-xs">
+                          {selectedProject.creator.slice(0, 6)}…
+                          {selectedProject.creator.slice(-4)}
+                        </span>
+                      </p>
+                      <p>
+                        Price:{" "}
+                        <span className="text-[#E3C463]">
+                          {price} ETH / FCAT
+                        </span>
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+          </CardContent>
+        </Card>
+
+        {/* MIDDLE CARD: HOLDINGS */}
+        <Card
+          className="bg-zinc-900/85 border border-[#C9A84F]/40 transition-all
+                     hover:border-[#F7E7A5]
+                     hover:shadow-[0_0_40px_rgba(234,179,8,0.25)]
+                     hover:-translate-y-1"
+        >
+          <CardHeader>
+            <CardTitle>Your Holdings</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p>
+              FCAT:{" "}
+              <span className="font-semibold">
+                {fcatBalance}
+              </span>
+            </p>
+            <p className="text-[#E3C463]">
+              Claimable: {claimableETH} ETH
+            </p>
+            <Button
+              onClick={claimRevenue}
+              className="w-full mt-4"
+              disabled={!selectedProject || !connected}
+            >
+              Claim
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* RIGHT CARD: NETWORK METRICS */}
+        <Card
+          className="bg-zinc-900/85 border border-[#C9A84F]/40 transition-all
+                     hover:border-[#F7E7A5]
+                     hover:shadow-[0_0_40px_rgba(234,179,8,0.25)]
+                     hover:-translate-y-1"
+        >
+          <CardHeader>
+            <CardTitle>Network</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p>
+              Total Supply:{" "}
+              <span className="font-semibold">
+                {totalSupply}
+              </span>
+            </p>
+            <p className="text-[#E3C463]">
+              Total Revenue: {totalRevenue} ETH
+            </p>
+          </CardContent>
+        </Card>
       </section>
     </main>
   );

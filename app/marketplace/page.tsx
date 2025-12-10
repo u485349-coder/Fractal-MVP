@@ -23,21 +23,14 @@ const REVENUE_ABI = [
   "function buy(uint256 amount) payable",
 ];
 
-/* ==============================
-   TYPES
-============================== */
-
 type MarketProject = {
   id: number;
   creator: string;
   fcat: string;
   revenue: string;
   assetURI: string;
+  priceETH: string;
 };
-
-/* ==============================
-   PAGE
-============================== */
 
 export default function MarketplacePage() {
   const [mounted, setMounted] = useState(false);
@@ -73,13 +66,28 @@ export default function MarketplacePage() {
     for (let i = 0; i < count; i++) {
       const p = await registry.getProject(i);
 
-      // ✅ ethers v6 positional returns
+      const creator = p[0];
+      const fcat = p[1];
+      const revenue = p[2];
+      const assetURI = p[3];
+
+      // get price per token for UI
+      const revenueContract = new ethers.Contract(
+        revenue,
+        REVENUE_ABI,
+        provider
+      );
+      const priceWei: bigint =
+        await revenueContract.pricePerTokenWei();
+      const priceETH = ethers.formatEther(priceWei);
+
       items.push({
         id: i,
-        creator: p[0],
-        fcat: p[1],
-        revenue: p[2],
-        assetURI: p[3],
+        creator,
+        fcat,
+        revenue,
+        assetURI,
+        priceETH,
       });
     }
 
@@ -143,7 +151,13 @@ export default function MarketplacePage() {
         <p style={{ color: "#9ca3af" }}>No projects yet.</p>
       )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 14,
+        }}
+      >
         {projects.map((p) => (
           <div
             key={p.id}
@@ -164,7 +178,14 @@ export default function MarketplacePage() {
               }}
             >
               <div>
-                <p style={{ fontSize: 13, color: "#9ca3af" }}>Asset</p>
+                <p
+                  style={{
+                    fontSize: 13,
+                    color: "#9ca3af",
+                  }}
+                >
+                  Asset
+                </p>
                 <p style={{ fontSize: 18 }}>{p.assetURI}</p>
 
                 <p
@@ -177,7 +198,26 @@ export default function MarketplacePage() {
                   Creator
                 </p>
                 <p style={{ fontSize: 14 }}>
-                  {p.creator.slice(0, 6)}…{p.creator.slice(-4)}
+                  {p.creator.slice(0, 6)}…
+                  {p.creator.slice(-4)}
+                </p>
+
+                <p
+                  style={{
+                    marginTop: 6,
+                    fontSize: 13,
+                    color: "#9ca3af",
+                  }}
+                >
+                  Price
+                </p>
+                <p
+                  style={{
+                    fontSize: 14,
+                    color: "#FACC6B",
+                  }}
+                >
+                  {p.priceETH} ETH / FCAT
                 </p>
               </div>
 
