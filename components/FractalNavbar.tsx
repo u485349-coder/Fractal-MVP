@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import WalletConnectClient from "@walletconnect/client";
+import QRCodeModal from "@walletconnect/qrcode-modal"; // ← ADDED
 
 const navLinkStyle = (active: boolean): React.CSSProperties => ({
   fontSize: 13,
@@ -21,10 +23,56 @@ export default function FractalNavbar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
-  // ✅ close mobile menu on navigation
+  const [address, setAddress] = useState("");
+
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
+
+  /* ================================
+     CONNECT WALLET (WC v1 + QR)
+  ================================= */
+  async function connectWallet() {
+    try {
+      const connector = new WalletConnectClient({
+        bridge: "https://bridge.walletconnect.org",
+      });
+
+      if (!connector.connected) {
+        await connector.createSession();
+      }
+
+      const uri = connector.uri;
+      const encoded = encodeURIComponent(uri);
+      const metamaskDeepLink = `https://metamask.app.link/wc?uri=${encoded}`;
+
+      const isMobile = /Mobi|Android/i.test(window.navigator.userAgent);
+
+      if (isMobile) {
+        // mobile → deep link
+        window.location.href = metamaskDeepLink;
+      } else {
+        // desktop → show QR modal (ADDED)
+        QRCodeModal.open(uri, () => {
+          console.log("QR Code modal closed");
+        });
+      }
+
+      // handle connection
+      connector.on("connect", (error: any, payload: any) => {
+        if (error) throw error;
+
+        QRCodeModal.close(); // close desktop QR when connected
+
+        const { accounts } = payload.params[0];
+        if (accounts && accounts.length > 0) {
+          setAddress(accounts[0]);
+        }
+      });
+    } catch (err) {
+      console.error("WalletConnect error:", err);
+    }
+  }
 
   return (
     <header
@@ -111,6 +159,26 @@ export default function FractalNavbar() {
           >
             Creator Dashboard
           </Link>
+
+          {/* DESKTOP CONNECT WALLET */}
+          <button
+            onClick={connectWallet}
+            style={{
+              padding: "6px 14px",
+              marginLeft: 8,
+              background: "#facc6b",
+              color: "#020617",
+              borderRadius: 999,
+              border: "none",
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            {address
+              ? `${address.slice(0, 6)}…${address.slice(-4)}`
+              : "Connect Wallet"}
+          </button>
         </nav>
 
         {/* MOBILE MENU BUTTON */}
@@ -165,6 +233,26 @@ export default function FractalNavbar() {
           >
             Creator Dashboard
           </Link>
+
+          {/* MOBILE CONNECT WALLET */}
+          <button
+            onClick={connectWallet}
+            style={{
+              padding: "6px 14px",
+              marginTop: 6,
+              background: "#facc6b",
+              color: "#020617",
+              borderRadius: 999,
+              border: "none",
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            {address
+              ? `${address.slice(0, 6)}…${address.slice(-4)}`
+              : "Connect Wallet"}
+          </button>
         </div>
       )}
 
@@ -179,7 +267,7 @@ export default function FractalNavbar() {
           nav.fractal-desktop-nav {
             display: flex;
           }
-          button {
+          button[style*="☰"] {
             display: none;
           }
         }

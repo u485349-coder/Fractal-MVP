@@ -59,6 +59,11 @@ export default function Home() {
   const [pulseHero, setPulseHero] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
 
+useEffect(() => {
+  console.log("WC ID:", process.env.NEXT_PUBLIC_WC_PROJECT_ID);
+}, []);
+
+
   // wallet’s FCAT holdings
   const [projects, setProjects] = useState<HoldingProject[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(
