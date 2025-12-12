@@ -3,72 +3,60 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import WalletConnectClient from "@walletconnect/client";
-import QRCodeModal from "@walletconnect/qrcode-modal"; // ← ADDED
+import { ethers } from "ethers";
 
-const navLinkStyle = (active: boolean): React.CSSProperties => ({
-  fontSize: 13,
-  letterSpacing: 2,
-  textTransform: "uppercase",
-  color: active ? "#facc6b" : "#e5e7eb",
-  textDecoration: "none",
-  padding: "6px 14px",
-  borderRadius: 999,
-  border: active
-    ? "1px solid rgba(250,204,107,0.5)"
-    : "1px solid transparent",
-});
+// WalletConnect Modal
+import { WalletConnectModal } from "@walletconnect/modal";
+
+// Project ID
+const wcProjectId = process.env.NEXT_PUBLIC_WC_PROJECT_ID || "";
+
+// Modal instance (browser only)
+let wcModal: WalletConnectModal | null = null;
+if (typeof window !== "undefined" && wcProjectId) {
+  wcModal = new WalletConnectModal({
+    projectId: wcProjectId,
+  });
+}
 
 export default function FractalNavbar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
-  const [address, setAddress] = useState("");
+  const [address, setAddress] = useState<string | null>(null);
+  const [provider, setProvider] = useState<any>(null);
 
   useEffect(() => {
+    // close menu on route change
     setOpen(false);
   }, [pathname]);
 
-  /* ================================
-     CONNECT WALLET (WC v1 + QR)
-  ================================= */
+  /* ===============================
+     CONNECT WALLET
+  =============================== */
   async function connectWallet() {
     try {
-      const connector = new WalletConnectClient({
-        bridge: "https://bridge.walletconnect.org",
-      });
-
-      if (!connector.connected) {
-        await connector.createSession();
+      if (!wcModal) {
+        alert("WalletConnect not initialized");
+        return;
       }
 
-      const uri = connector.uri;
-      const encoded = encodeURIComponent(uri);
-      const metamaskDeepLink = `https://metamask.app.link/wc?uri=${encoded}`;
+      // Opens WalletConnect modal → user selects MetaMask / Coinbase / etc.
+      const session = await wcModal.openModal();
+      if (!session) return;
 
-      const isMobile = /Mobi|Android/i.test(window.navigator.userAgent);
+      const account = session?.addresses?.[0];
+      const chain = session?.chains?.[0];
 
-      if (isMobile) {
-        // mobile → deep link
-        window.location.href = metamaskDeepLink;
-      } else {
-        // desktop → show QR modal (ADDED)
-        QRCodeModal.open(uri, () => {
-          console.log("QR Code modal closed");
-        });
-      }
+      if (!account) return;
 
-      // handle connection
-      connector.on("connect", (error: any, payload: any) => {
-        if (error) throw error;
+      setAddress(account);
 
-        QRCodeModal.close(); // close desktop QR when connected
-
-        const { accounts } = payload.params[0];
-        if (accounts && accounts.length > 0) {
-          setAddress(accounts[0]);
-        }
-      });
+      // Create an ethers provider for read calls
+      const ethersProvider = new ethers.JsonRpcProvider(
+        `https://rpc.walletconnect.org/v1/?chainId=${chain}`
+      );
+      setProvider(ethersProvider);
     } catch (err) {
       console.error("WalletConnect error:", err);
     }
@@ -114,12 +102,18 @@ export default function FractalNavbar() {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              background:
-                "radial-gradient(circle at 30% 0, #facc6b 0, #7c3aed 40%, #020617 80%)",
-              boxShadow: "0 0 25px rgba(250,204,107,0.35)",
+              background: "black",
             }}
           >
-            <span style={{ fontSize: 20 }}>Ϝ</span>
+            <img
+              src="/FractalLogo.png"
+              alt="Fractal Logo"
+              style={{
+                width: "70%",
+                height: "70%",
+                objectFit: "contain",
+              }}
+            />
           </div>
 
           <span
@@ -127,6 +121,7 @@ export default function FractalNavbar() {
               fontSize: 15,
               letterSpacing: 6,
               textTransform: "uppercase",
+              color: "#FFFFFF",     // <<<<<< ONLY CHANGE
             }}
           >
             Fractal
@@ -135,139 +130,98 @@ export default function FractalNavbar() {
 
         {/* DESKTOP NAV */}
         <nav className="fractal-desktop-nav">
-          <Link href="/" style={navLinkStyle(pathname === "/")}>
+          <Link href="/" style={linkStyle(pathname === "/")}>
             Investor
           </Link>
 
           <Link
             href="/marketplace"
-            style={navLinkStyle(pathname.startsWith("/marketplace"))}
+            style={linkStyle(pathname.startsWith("/marketplace"))}
           >
             Marketplace
           </Link>
 
-          <Link
-            href="/creator"
-            style={navLinkStyle(pathname === "/creator")}
-          >
+          <Link href="/creator" style={linkStyle(pathname === "/creator")}>
             Create Project
           </Link>
 
           <Link
             href="/dashboard"
-            style={navLinkStyle(pathname.startsWith("/dashboard"))}
+            style={linkStyle(pathname.startsWith("/dashboard"))}
           >
             Creator Dashboard
           </Link>
 
-          {/* DESKTOP CONNECT WALLET */}
-          <button
-            onClick={connectWallet}
-            style={{
-              padding: "6px 14px",
-              marginLeft: 8,
-              background: "#facc6b",
-              color: "#020617",
-              borderRadius: 999,
-              border: "none",
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            {address
-              ? `${address.slice(0, 6)}…${address.slice(-4)}`
-              : "Connect Wallet"}
-          </button>
+          {/* CONNECT WALLET BUTTON */}
+          {!address ? (
+            <button onClick={connectWallet} style={connectButton}>
+              Connect Wallet
+            </button>
+          ) : (
+            <span style={addressStyle}>
+              {address.slice(0, 6)}…{address.slice(-4)}
+            </span>
+          )}
         </nav>
 
         {/* MOBILE MENU BUTTON */}
-        <button
-          onClick={() => setOpen((o) => !o)}
-          style={{
-            border: "1px solid rgba(75,85,99,0.7)",
-            borderRadius: 10,
-            padding: "6px 10px",
-            fontSize: 14,
-            background: "#020617",
-            color: "#e5e7eb",
-          }}
-        >
+        <button onClick={() => setOpen((o) => !o)} style={mobileButton}>
           ☰
         </button>
       </div>
 
       {/* MOBILE DROPDOWN */}
       {open && (
-        <div
-          style={{
-            padding: "12px 16px 16px",
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-            borderTop: "1px solid rgba(148,163,184,0.15)",
-            background: "#020617",
-          }}
-        >
-          <Link href="/" style={navLinkStyle(pathname === "/")}>
+        <div style={mobileDropdown}>
+          <Link href="/" style={linkStyle(pathname === "/")}>
             Investor
           </Link>
 
           <Link
             href="/marketplace"
-            style={navLinkStyle(pathname.startsWith("/marketplace"))}
+            style={linkStyle(pathname.startsWith("/marketplace"))}
           >
             Marketplace
           </Link>
 
-          <Link
-            href="/creator"
-            style={navLinkStyle(pathname === "/creator")}
-          >
+          <Link href="/creator" style={linkStyle(pathname === "/creator")}>
             Create Project
           </Link>
 
           <Link
             href="/dashboard"
-            style={navLinkStyle(pathname.startsWith("/dashboard"))}
+            style={linkStyle(pathname.startsWith("/dashboard"))}
           >
             Creator Dashboard
           </Link>
 
-          {/* MOBILE CONNECT WALLET */}
-          <button
-            onClick={connectWallet}
-            style={{
-              padding: "6px 14px",
-              marginTop: 6,
-              background: "#facc6b",
-              color: "#020617",
-              borderRadius: 999,
-              border: "none",
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            {address
-              ? `${address.slice(0, 6)}…${address.slice(-4)}`
-              : "Connect Wallet"}
-          </button>
+          {!address ? (
+            <button
+              onClick={connectWallet}
+              style={{ ...connectButton, width: "100%", marginTop: 6 }}
+            >
+              Connect Wallet
+            </button>
+          ) : (
+            <span style={addressStyle}>
+              {address.slice(0, 6)}…{address.slice(-4)}
+            </span>
+          )}
         </div>
       )}
 
+      {/* STYLES */}
       <style jsx>{`
         nav.fractal-desktop-nav {
           display: none;
           gap: 14px;
           align-items: center;
         }
-
         @media (min-width: 768px) {
           nav.fractal-desktop-nav {
             display: flex;
           }
-          button[style*="☰"] {
+          button[style*="#020617"] {
             display: none;
           }
         }
@@ -275,3 +229,54 @@ export default function FractalNavbar() {
     </header>
   );
 }
+
+/* ============================================
+   SHARED STYLES
+============================================ */
+
+const linkStyle = (active: boolean): React.CSSProperties => ({
+  fontSize: 13,
+  letterSpacing: 2,
+  textTransform: "uppercase",
+  color: active ? "#facc6b" : "#e5e7eb",
+  textDecoration: "none",
+  padding: "6px 14px",
+  borderRadius: 999,
+  border: active
+    ? "1px solid rgba(250,204,107,0.5)"
+    : "1px solid transparent",
+});
+
+const connectButton: React.CSSProperties = {
+  padding: "6px 14px",
+  background: "linear-gradient(to right, #facc6b, #7c3aed)",
+  color: "#020617",
+  borderRadius: 999,
+  fontSize: 12,
+  fontWeight: 600,
+  cursor: "pointer",
+};
+
+const addressStyle: React.CSSProperties = {
+  fontSize: 12,
+  color: "#E3C463",
+  fontFamily: "monospace",
+};
+
+const mobileButton: React.CSSProperties = {
+  border: "1px solid rgba(75,85,99,0.7)",
+  borderRadius: 10,
+  padding: "6px 10px",
+  fontSize: 14,
+  background: "#020617",
+  color: "#e5e7eb",
+};
+
+const mobileDropdown: React.CSSProperties = {
+  padding: "12px 16px 16px",
+  display: "flex",
+  flexDirection: "column",
+  gap: 10,
+  borderTop: "1px solid rgba(148,163,184,0.15)",
+  background: "#020617",
+};

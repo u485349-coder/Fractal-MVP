@@ -31,7 +31,6 @@ export default function CreatorPage() {
   const [status, setStatus] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // ✅ hydration guard
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -77,7 +76,6 @@ export default function CreatorPage() {
 
       setStatus(`✅ Project created (tx ${receipt.hash.slice(0, 10)}…)`);
 
-      // reset inputs
       setName("");
       setSymbol("");
       setAssetURI("");
@@ -93,135 +91,121 @@ export default function CreatorPage() {
 
   return (
     <FractalShell>
-      <h1 style={{ fontSize: 24, marginBottom: 10 }}>
-        Create Project
-      </h1>
+      <div className="max-w-xl mx-auto px-4">
+        <h1 className="text-2xl text-white mb-2">Create Project</h1>
 
-      <p
-        style={{
-          color: "#9ca3af",
-          marginBottom: 24,
-          fontSize: 14,
-        }}
-      >
-        Deploy a new FCAT + revenue share pair and register it in the
-        Fractal registry.
-      </p>
+        <p className="text-sm text-zinc-400 mb-6">
+          Deploy a new FCAT + revenue share pair and register it in the Fractal registry.
+        </p>
 
-      <form
-        onSubmit={handleSubmit}
-        style={{
-          maxWidth: 480,
-          display: "flex",
-          flexDirection: "column",
-          gap: 14,
-          borderRadius: 18,
-          border: "1px solid rgba(55,65,81,0.9)",
-          padding: 18,
-          background:
-            "radial-gradient(circle at top left, rgba(148,163,184,0.18), transparent 70%)",
-        }}
-      >
-        <label style={{ fontSize: 13 }}>
-          Name
-          <input
-            value={name}
-            onChange={(e) => setName(e.currentTarget.value)}
-            required
-            style={inputStyle}
-          />
-        </label>
-
-        <label style={{ fontSize: 13 }}>
-          Symbol
-          <input
-            value={symbol}
-            onChange={(e) => setSymbol(e.currentTarget.value)}
-            required
-            style={inputStyle}
-          />
-        </label>
-
-        <label style={{ fontSize: 13 }}>
-          Asset URI
-          <input
-            value={assetURI}
-            onChange={(e) => setAssetURI(e.currentTarget.value)}
-            required
-            style={inputStyle}
-          />
-        </label>
-
-        <label style={{ fontSize: 13 }}>
-          Initial Supply
-          <input
-            type="number"
-            min={0}
-            value={initialSupply}
-            onChange={(e) => setInitialSupply(e.target.value)}
-            required
-            style={inputStyle}
-          />
-        </label>
-
-        <label style={{ fontSize: 13 }}>
-          Price per FCAT (ETH)
-          <input
-            type="number"
-            step="0.000001"
-            min={0}
-            value={priceETH}
-            onChange={(e) => setPriceETH(e.target.value)}
-            required
-            style={inputStyle}
-          />
-        </label>
-
-        <button
-          type="submit"
-          disabled={submitting}
-          style={{
-            marginTop: 8,
-            padding: "9px 0",
-            borderRadius: 999,
-            border: "none",
-            background:
-              "linear-gradient(to right, #facc6b, #a855f7, #38bdf8)",
-            color: "#020617",
-            fontWeight: 600,
-            cursor: submitting ? "wait" : "pointer",
-          }}
+        <form
+          onSubmit={handleSubmit}
+          className="
+            flex flex-col gap-4 rounded-2xl 
+            border border-zinc-800 
+            bg-[#0d0d0d]/80 
+            p-6
+            shadow-[0_0_20px_rgba(212,175,55,0.08)]
+            transition
+          "
         >
-          {submitting ? "Creating…" : "Create Project"}
-        </button>
+          <label className="text-sm text-white">
+            Name
+            <input
+              value={name}
+              onChange={(e) => setName(e.currentTarget.value)}
+              required
+              className="
+                mt-1 w-full px-3 py-2 rounded-lg bg-black 
+                border border-zinc-700 text-white text-sm
+                focus:outline-none focus:ring-2 focus:ring-[#E3C463]/40
+              "
+            />
+          </label>
 
-        {status && (
-          <p
-            style={{
-              marginTop: 6,
-              fontSize: 13,
-              color: "#9ca3af",
-            }}
+          <label className="text-sm text-white">
+            Symbol
+            <input
+              value={symbol}
+              onChange={(e) => setSymbol(e.currentTarget.value)}
+              required
+              className="
+                mt-1 w-full px-3 py-2 rounded-lg bg-black 
+                border border-zinc-700 text-white text-sm
+                focus:outline-none focus:ring-2 focus:ring-[#E3C463]/40
+              "
+            />
+          </label>
+
+          <label className="text-sm text-white">
+            Asset URI
+            <input
+              value={assetURI}
+              onChange={(e) => setAssetURI(e.currentTarget.value)}
+              required
+              className="
+                mt-1 w-full px-3 py-2 rounded-lg bg-black 
+                border border-zinc-700 text-white text-sm
+                focus:outline-none focus:ring-2 focus:ring-[#E3C463]/40
+              "
+            />
+          </label>
+
+          <label className="text-sm text-white">
+            Initial Supply
+            <input
+              type="number"
+              min={0}
+              value={initialSupply}
+              onChange={(e) => setInitialSupply(e.target.value)}
+              required
+              className="
+                mt-1 w-full px-3 py-2 rounded-lg bg-black 
+                border border-zinc-700 text-white text-sm
+                focus:outline-none focus:ring-2 focus:ring-[#E3C463]/40
+              "
+            />
+          </label>
+
+          <label className="text-sm text-white">
+            Price per FCAT (ETH)
+            <input
+              type="number"
+              step="0.000001"
+              min={0}
+              value={priceETH}
+              onChange={(e) => setPriceETH(e.target.value)}
+              required
+              className="
+                mt-1 w-full px-3 py-2 rounded-lg bg-black 
+                border border-zinc-700 text-white text-sm
+                focus:outline-none focus:ring-2 focus:ring-[#E3C463]/40
+              "
+            />
+          </label>
+
+          {/* ✔ RAINBOW BUTTON (corrected) */}
+          <button
+            type="submit"
+            disabled={submitting}
+            className={`
+              mt-3 w-full py-2 rounded-full font-semibold text-sm
+              transition
+              ${
+                submitting
+                  ? "bg-zinc-700 text-zinc-300 cursor-wait"
+                  : "bg-gradient-to-r from-yellow-300 via-purple-500 to-sky-400 text-black hover:opacity-90"
+              }
+            `}
           >
-            {status}
-          </p>
-        )}
-      </form>
+            {submitting ? "Creating…" : "Create Project"}
+          </button>
+
+          {status && (
+            <p className="text-sm text-zinc-400 mt-1">{status}</p>
+          )}
+        </form>
+      </div>
     </FractalShell>
   );
 }
-
-/* ==============================
-   STYLES
-============================== */
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  marginTop: 6,
-  padding: "8px 10px",
-  borderRadius: 10,
-  border: "1px solid rgba(75,85,99,0.9)",
-  backgroundColor: "#020617",
-  color: "#e5e7eb",
-  fontSize: 14,
-};

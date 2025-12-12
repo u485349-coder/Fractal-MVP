@@ -66,10 +66,6 @@ export default function CreatorDashboard() {
     void loadCreatorProjects();
   }, [mounted]);
 
-  /* ==============================
-     READ-ONLY LOAD (MOBILE SAFE)
-  ============================= */
-
   async function loadCreatorProjects() {
     const provider =
       (window as any).ethereum
@@ -84,7 +80,6 @@ export default function CreatorDashboard() {
 
     let addr = account;
 
-    // only resolve address if MetaMask exists
     if ((window as any).ethereum && !addr) {
       const signer = await (
         provider as ethers.BrowserProvider
@@ -125,10 +120,6 @@ export default function CreatorDashboard() {
 
     setProjects(items);
   }
-
-  /* ==============================
-     WRITE ACTIONS (METAMASK ONLY)
-  ============================= */
 
   async function withdraw(project: CreatorProject) {
     try {
@@ -210,18 +201,14 @@ export default function CreatorDashboard() {
 
   return (
     <FractalShell>
-      <h1 className="text-2xl text-white mb-2">
-        Creator Dashboard
-      </h1>
+      <h1 className="text-2xl text-white mb-2">Creator Dashboard</h1>
 
       <p className="text-sm text-zinc-400 mb-6">
         Manage your projects, revenue, deposits, and withdrawals.
       </p>
 
       {projects.length === 0 && (
-        <p className="text-zinc-400">
-          No projects found for this wallet.
-        </p>
+        <p className="text-zinc-400">No projects found for this wallet.</p>
       )}
 
       <div className="flex flex-col gap-4">
@@ -231,50 +218,50 @@ export default function CreatorDashboard() {
           return (
             <div
               key={p.id}
-              className="rounded-xl border border-zinc-700 bg-zinc-900/80 overflow-hidden"
+              className="
+                rounded-xl 
+                border border-zinc-700 
+                bg-zinc-900/80
+                overflow-hidden 
+                transition
+              "
             >
+              {/* HEADER */}
               <button
-                onClick={() =>
-                  setExpandedId(expanded ? null : p.id)
-                }
-                className="w-full text-left px-4 py-4 flex justify-between items-center"
+                onClick={() => setExpandedId(expanded ? null : p.id)}
+                className="w-full text-left px-5 py-4 flex justify-between items-center"
               >
                 <div>
-                  <p className="text-xs text-zinc-400">Project</p>
-                  <p className="text-lg text-white">{p.asset}</p>
+                  <p className="text-xs text-zinc-500">Project</p>
+                  <p className="text-lg text-white tracking-wide">
+                    {p.asset}
+                  </p>
                 </div>
+
                 <span className="text-[#E3C463] text-sm">
                   {expanded ? "▲" : "▼"}
                 </span>
               </button>
 
+              {/* BODY */}
               {expanded && (
-                <div className="px-4 pb-4 space-y-3 text-sm">
+                <div className="px-5 pb-5 space-y-4 text-sm">
                   <p className="text-zinc-300">
                     Total Revenue:
-                    <span className="text-white">
-                      {" "}
-                      {p.totalRevenue} ETH
-                    </span>
+                    <span className="text-white"> {p.totalRevenue} ETH</span>
                   </p>
 
                   <p className="text-zinc-300">
                     Creator Gross:
-                    <span className="text-white">
-                      {" "}
-                      {p.gross} ETH
-                    </span>
+                    <span className="text-white"> {p.gross} ETH</span>
                   </p>
 
                   <p className="text-zinc-300">
                     Claimed:
-                    <span className="text-white">
-                      {" "}
-                      {p.claimed} ETH
-                    </span>
+                    <span className="text-white"> {p.claimed} ETH</span>
                   </p>
 
-                  <p className="text-[#E3C463]">
+                  <p className="text-[#E3C463] font-semibold">
                     Remaining: {p.remaining} ETH
                   </p>
 
@@ -289,38 +276,44 @@ export default function CreatorDashboard() {
                         [p.id]: e.target.value,
                       }))
                     }
-                    className="w-full mt-2 px-3 py-2 rounded-lg border border-zinc-700 bg-black text-white text-sm"
+                    className="
+                      w-full mt-2 px-3 py-2 rounded-lg 
+                      border border-zinc-700 bg-black 
+                      text-white text-sm 
+                      focus:outline-none focus:ring-2 focus:ring-[#E3C463]/40
+                    "
                   />
 
+                  {/* RAINBOW BUTTON: Deposit */}
                   <button
-                    onClick={() =>
-                      depositRevenue(
-                        p,
-                        depositAmount[p.id] || ""
-                      )
-                    }
+                    onClick={() => depositRevenue(p, depositAmount[p.id] || "")}
                     disabled={depositingId === p.id}
-                    className={`w-full py-2 rounded-full font-semibold text-sm
+                    className={`
+                      w-full py-2 rounded-full font-semibold text-sm transition
                       ${
                         depositingId === p.id
                           ? "bg-zinc-700 text-zinc-300 cursor-wait"
-                          : "bg-gradient-to-r from-sky-400 to-emerald-400 text-black"
-                      }`}
+                          : "bg-gradient-to-r from-yellow-300 via-purple-500 to-sky-400 text-black hover:opacity-90"
+                      }
+                    `}
                   >
                     {depositingId === p.id
                       ? "Depositing…"
                       : "Deposit External Revenue"}
                   </button>
 
+                  {/* RAINBOW BUTTON: Withdraw */}
                   <button
                     onClick={() => withdraw(p)}
                     disabled={withdrawingId === p.id}
-                    className={`w-full py-2 rounded-full font-semibold text-sm
+                    className={`
+                      w-full py-2 rounded-full font-semibold text-sm transition
                       ${
                         withdrawingId === p.id
                           ? "bg-zinc-700 text-zinc-300 cursor-wait"
-                          : "bg-gradient-to-r from-yellow-300 via-purple-500 to-sky-400 text-black"
-                      }`}
+                          : "bg-gradient-to-r from-yellow-300 via-purple-500 to-sky-400 text-black hover:opacity-90"
+                      }
+                    `}
                   >
                     {withdrawingId === p.id
                       ? "Withdrawing…"

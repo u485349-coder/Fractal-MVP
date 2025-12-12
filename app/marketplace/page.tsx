@@ -37,7 +37,6 @@ export default function MarketplacePage() {
   const [projects, setProjects] = useState<MarketProject[]>([]);
   const [buyingId, setBuyingId] = useState<number | null>(null);
 
-  // ✅ UI-only: expanded project (mobile dropdown)
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -49,7 +48,6 @@ export default function MarketplacePage() {
     loadProjects();
   }, [mounted]);
 
-  // ✅ FIXED: mobile-safe, read-only provider fallback
   async function loadProjects() {
     const provider =
       (window as any).ethereum
@@ -133,13 +131,10 @@ export default function MarketplacePage() {
 
   return (
     <FractalShell>
-      <h1 className="text-2xl text-white mb-2">
-        Fractal Marketplace
-      </h1>
+      <h1 className="text-2xl text-white mb-2">Fractal Marketplace</h1>
 
       <p className="text-sm text-zinc-400 mb-6">
-        Browse live creator projects. Each FCAT lets you invest
-        directly in a creator’s work.
+        Browse live creator projects. Each FCAT lets you invest directly in a creator’s work.
       </p>
 
       {projects.length === 0 && (
@@ -153,18 +148,21 @@ export default function MarketplacePage() {
           return (
             <div
               key={p.id}
-              className="rounded-xl border border-zinc-700 bg-zinc-900/80 overflow-hidden"
+              className="
+                rounded-xl border border-zinc-800 
+                bg-[#161819]
+                overflow-hidden
+                transition
+              "
             >
               {/* HEADER */}
               <button
-                onClick={() =>
-                  setExpandedId(expanded ? null : p.id)
-                }
-                className="w-full text-left px-4 py-4 flex justify-between items-center"
+                onClick={() => setExpandedId(expanded ? null : p.id)}
+                className="w-full text-left px-5 py-4 flex justify-between items-center"
               >
                 <div>
-                  <p className="text-xs text-zinc-400">Asset</p>
-                  <p className="text-lg text-white">
+                  <p className="text-xs text-zinc-500">Asset</p>
+                  <p className="text-lg text-white tracking-wide">
                     {p.assetURI}
                   </p>
                 </div>
@@ -176,18 +174,17 @@ export default function MarketplacePage() {
 
               {/* BODY */}
               {expanded && (
-                <div className="px-4 pb-4 space-y-3 text-sm">
+                <div className="px-5 pb-5 space-y-4 text-sm">
                   <div>
-                    <p className="text-zinc-400">Creator</p>
+                    <p className="text-zinc-500">Creator</p>
                     <p className="text-white">
-                      {p.creator.slice(0, 6)}…
-                      {p.creator.slice(-4)}
+                      {p.creator.slice(0, 6)}…{p.creator.slice(-4)}
                     </p>
                   </div>
 
                   <div>
-                    <p className="text-zinc-400">Price</p>
-                    <p className="text-[#E3C463]">
+                    <p className="text-zinc-500">Price</p>
+                    <p className="text-[#E3C463] font-semibold">
                       {p.priceETH} ETH / FCAT
                     </p>
                   </div>
@@ -195,16 +192,17 @@ export default function MarketplacePage() {
                   <button
                     onClick={() => buyOne(p)}
                     disabled={buyingId === p.id}
-                    className={`w-full mt-3 py-2 rounded-full font-semibold text-sm
+                    className={`
+                      w-full mt-3 py-2 rounded-full font-semibold text-sm
+                      transition 
                       ${
                         buyingId === p.id
                           ? "bg-zinc-700 text-zinc-300 cursor-wait"
                           : "bg-gradient-to-r from-yellow-300 via-purple-500 to-sky-400 text-black hover:opacity-90"
-                      }`}
+                      }
+                    `}
                   >
-                    {buyingId === p.id
-                      ? "Buying…"
-                      : "Buy 1 FCAT"}
+                    {buyingId === p.id ? "Buying…" : "Buy 1 FCAT"}
                   </button>
                 </div>
               )}

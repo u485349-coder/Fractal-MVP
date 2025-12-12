@@ -4,7 +4,12 @@ import FractalNavbar from "./FractalNavbar";
 
 export default function FractalShell({ children }: { children: ReactNode }) {
   return (
-    <div style={{ minHeight: "100vh" }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#1A1C1E", // ← NEW (page background)
+      }}
+    >
       <FractalNavbar />
       <main
         style={{
