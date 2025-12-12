@@ -32,7 +32,7 @@ export default function FractalNavbar() {
   }, [pathname]);
 
   /* ===============================
-     CONNECT WALLET
+     CONNECT WALLET (WC v2 FIX)
   =============================== */
   async function connectWallet() {
     try {
@@ -41,22 +41,27 @@ export default function FractalNavbar() {
         return;
       }
 
-      // Opens WalletConnect modal → user selects MetaMask / Coinbase / etc.
-      const session = await wcModal.openModal();
-      // REMOVED: if (!session) return;   <-- this was causing the TS error
+      // Subscribe for session event updates
+      wcModal.subscribeModal((modalState) => {
+        const session = modalState.session;
 
-      const account = session?.addresses?.[0];
-      const chain = session?.chains?.[0];
+        if (session && session.addresses?.length > 0) {
+          const account = session.addresses[0];
+          const chain = session.chains?.[0];
 
-      if (!account) return;
+          setAddress(account);
 
-      setAddress(account);
+          const ethersProvider = new ethers.JsonRpcProvider(
+            `https://rpc.walletconnect.org/v1/?chainId=${chain}`
+          );
 
-      // Create an ethers provider for read calls
-      const ethersProvider = new ethers.JsonRpcProvider(
-        `https://rpc.walletconnect.org/v1/?chainId=${chain}`
-      );
-      setProvider(ethersProvider);
+          setProvider(ethersProvider);
+        }
+      });
+
+      // Open wallet selection modal
+      await wcModal.openModal();
+
     } catch (err) {
       console.error("WalletConnect error:", err);
     }
