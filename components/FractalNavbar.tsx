@@ -4,16 +4,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
-
-// WalletConnect Modal
 import { WalletConnectModal } from "@walletconnect/modal";
 
-// Project ID
-const wcProjectId = process.env.NEXT_PUBLIC_WC_PROJECT_ID || "";
+/* ===============================
+   WALLETCONNECT CONFIG (FIXED)
+=============================== */
+
+const wcProjectId = "8dc2f97f37f1c47f1f272ef8af56d830";
 
 // Modal instance (browser only)
 let wcModal: WalletConnectModal | null = null;
-if (typeof window !== "undefined" && wcProjectId) {
+if (typeof window !== "undefined") {
   wcModal = new WalletConnectModal({
     projectId: wcProjectId,
   });
@@ -27,12 +28,11 @@ export default function FractalNavbar() {
   const [provider, setProvider] = useState<any>(null);
 
   useEffect(() => {
-    // close menu on route change
     setOpen(false);
   }, [pathname]);
 
   /* ===============================
-     CONNECT WALLET (WC v2 FIX)
+     CONNECT WALLET (TYPE-SAFE)
   =============================== */
   async function connectWallet() {
     try {
@@ -41,27 +41,22 @@ export default function FractalNavbar() {
         return;
       }
 
-      // Subscribe for session event updates
-      wcModal.subscribeModal((modalState) => {
-        const session = modalState.session;
-
-        if (session && session.addresses?.length > 0) {
-          const account = session.addresses[0];
-          const chain = session.chains?.[0];
-
-          setAddress(account);
-
-          const ethersProvider = new ethers.JsonRpcProvider(
-            `https://rpc.walletconnect.org/v1/?chainId=${chain}`
-          );
-
-          setProvider(ethersProvider);
-        }
-      });
-
-      // Open wallet selection modal
+      // WalletConnect modal returns void → use provider instead
       await wcModal.openModal();
 
+      if (!(window as any).ethereum) {
+        alert("No wallet found");
+        return;
+      }
+
+      const browserProvider = new ethers.BrowserProvider(
+        (window as any).ethereum
+      );
+      const signer = await browserProvider.getSigner();
+      const addr = await signer.getAddress();
+
+      setAddress(addr);
+      setProvider(browserProvider);
     } catch (err) {
       console.error("WalletConnect error:", err);
     }
@@ -157,7 +152,6 @@ export default function FractalNavbar() {
             Creator Dashboard
           </Link>
 
-          {/* CONNECT WALLET BUTTON */}
           {!address ? (
             <button onClick={connectWallet} style={connectButton}>
               Connect Wallet
@@ -215,7 +209,6 @@ export default function FractalNavbar() {
         </div>
       )}
 
-      {/* STYLES */}
       <style jsx>{`
         nav.fractal-desktop-nav {
           display: none;
@@ -226,18 +219,15 @@ export default function FractalNavbar() {
           nav.fractal-desktop-nav {
             display: flex;
           }
-          button[style*="#020617"] {
-            display: none;
-          }
         }
       `}</style>
     </header>
   );
 }
 
-/* ============================================
-   SHARED STYLES
-============================================ */
+/* ===============================
+   SHARED STYLES (UNCHANGED)
+=============================== */
 
 const linkStyle = (active: boolean): React.CSSProperties => ({
   fontSize: 13,
