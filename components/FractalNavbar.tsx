@@ -43,7 +43,7 @@ export default function FractalNavbar() {
 
       // Opens WalletConnect modal → user selects MetaMask / Coinbase / etc.
       const session = await wcModal.openModal();
-      if (!session) return;
+      // REMOVED: if (!session) return;   <-- this was causing the TS error
 
       const account = session?.addresses?.[0];
       const chain = session?.chains?.[0];
@@ -121,7 +121,7 @@ export default function FractalNavbar() {
               fontSize: 15,
               letterSpacing: 6,
               textTransform: "uppercase",
-              color: "#FFFFFF",     // <<<<<< ONLY CHANGE
+              color: "#FFFFFF",
             }}
           >
             Fractal
